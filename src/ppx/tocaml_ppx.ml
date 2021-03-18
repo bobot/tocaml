@@ -19,7 +19,7 @@ let get_filename ctxt path =
 let unique_file_name file =
   let digest = Digest.file file in
   let digest = Digest.to_hex digest in
-  Printf.sprintf "TOCAML_private_%s" digest
+  (Printf.sprintf "TOCAML_private_%s" digest, digest)
 
 let open_file file =
   let cin = open_in file in
@@ -32,10 +32,23 @@ let open_file file =
   in
   impl
 
-let expand ~ctxt relative_filename =
+let expand ~ctxt relative_filename args =
   let loc = Expansion_context.Extension.extension_point_loc ctxt in
+  let sha_expected =
+    match args with
+    | [] -> None
+    | [ sha ] -> Some sha
+    | _ -> Location.raise_errorf ~loc "imports \"PATH|URL\" \"sha\"?"
+  in
   let file = get_filename ctxt relative_filename in
-  let id = unique_file_name file in
+  let id, sha = unique_file_name file in
+  Option.iter
+    (fun sha_expected ->
+      if not (String.equal sha sha_expected) then
+        Location.raise_errorf ~loc
+          "File %s has a different digest %S than expected %S" file sha
+          sha_expected)
+    sha_expected;
   if not (Hashtbl.mem already_loaded id) then (
     Hashtbl.add already_loaded id ();
     let str = open_file file in
@@ -44,7 +57,13 @@ let expand ~ctxt relative_filename =
 
 let my_extension =
   Extension.V3.declare "import" Extension.Context.module_expr
-    Ast_pattern.(single_expr_payload (estring __))
+    (* Ast_pattern.(single_expr_payload (elist (estring __))) *)
+    Ast_pattern.(
+      single_expr_payload
+        (alt
+           (map_result (estring __) ~f:(fun f -> f []))
+           (pexp_apply (estring __)
+              (many (pair (of_func (fun _ _ _ f -> f)) (estring __))))))
     expand
 
 let rule = Ppxlib.Context_free.Rule.extension my_extension
