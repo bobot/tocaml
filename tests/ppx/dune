@@ -1,0 +1,11 @@
+(executable
+ (name conf)
+ (modules conf)
+ (preprocess (pps tocaml.ppx))
+ (preprocessor_deps import.ml)
+)
+
+(rule
+ (alias runtest)
+ (action (run ./conf.exe))
+)
