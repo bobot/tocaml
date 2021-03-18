@@ -5,32 +5,52 @@ let imports = Queue.create ()
 
 let already_loaded = Hashtbl.create 10
 
-let get_filename ~ctxt path =
-  let source =
-    ctxt |> Expansion_context.Extension.code_path |> Code_path.file_path
-  in
-  let dir =
-    match source with
-    | "//toplevel//" | "-" -> Sys.getcwd ()
-    | _ -> Filename.dirname source
-  in
-  Filename.concat dir path
+type uri = Local of string | HTTP of string
 
-let unique_file_name file =
-  let digest = Digest.file file in
-  let digest = Digest.to_hex digest in
-  (Printf.sprintf "TOCAML_private_%s" digest, digest)
+let re_http =
+  Re.(compile (seq [ start; str "http"; opt (char 's'); str "://" ]))
+
+let get_filename ~ctxt path =
+  if Re.execp re_http path then HTTP path
+  else
+    let source =
+      ctxt |> Expansion_context.Extension.code_path |> Code_path.file_path
+    in
+    let dir =
+      match source with
+      | "//toplevel//" | "-" -> Sys.getcwd ()
+      | _ -> Filename.dirname source
+    in
+    Local (Filename.concat dir path)
+
+let unique_file_name digest = Printf.sprintf "TOCAML_private_%s" digest
+
+let get_sha = function
+  | HTTP uri -> (
+      match Curly.get uri with
+      | Ok { body; _ } -> Digest.to_hex @@ Digest.string body
+      | Error error ->
+          Location.raise_errorf "Error during import of %S:%a" uri
+            Curly.Error.pp error)
+  | Local file -> Digest.to_hex @@ Digest.file file
 
 let open_file file =
-  let cin = open_in file in
-  let impl =
-    Fun.protect
-      ~finally:(fun () -> close_in cin)
-      (fun () ->
-        let lexbuf = Lexing.from_channel ~with_positions:true cin in
-        Parse.implementation lexbuf)
-  in
-  impl
+  match file with
+  | HTTP uri -> (
+      match Curly.get uri with
+      | Ok { body; _ } ->
+          let lexbuf = Lexing.from_string ~with_positions:true body in
+          Parse.implementation lexbuf
+      | Error error ->
+          Location.raise_errorf "Error during import of %S:%a" uri
+            Curly.Error.pp error)
+  | Local file ->
+      let cin = open_in file in
+      Fun.protect
+        ~finally:(fun () -> close_in cin)
+        (fun () ->
+          let lexbuf = Lexing.from_channel ~with_positions:true cin in
+          Parse.implementation lexbuf)
 
 let expand ~ctxt relative_filename args =
   let loc = Expansion_context.Extension.extension_point_loc ctxt in
@@ -40,18 +60,19 @@ let expand ~ctxt relative_filename args =
     | [ sha ] -> Some sha
     | _ -> Location.raise_errorf ~loc "imports \"PATH|URL\" \"sha\"?"
   in
-  let file = get_filename ~ctxt relative_filename in
-  let id, sha = unique_file_name file in
+  let uri = get_filename ~ctxt relative_filename in
+  let sha = get_sha uri in
+  let id = unique_file_name sha in
   Option.iter
     (fun sha_expected ->
       if not (String.equal sha sha_expected) then
         Location.raise_errorf ~loc
-          "File %s has a different digest %S than expected %S" file sha
-          sha_expected)
+          "File %s has a different digest %S than expected %S" relative_filename
+          sha sha_expected)
     sha_expected;
   if not (Hashtbl.mem already_loaded id) then (
     Hashtbl.add already_loaded id ();
-    let str = open_file file in
+    let str = open_file uri in
     Queue.push (id, loc, str) imports);
   id
 
