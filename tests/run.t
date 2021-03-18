@@ -29,3 +29,20 @@
   File "-", line 1, characters 11-41:
   Error: File $TESTCASE_ROOT/import.ml has a different digest "7f2f2c5002cb0a5c9643675b06d2fa72" than expected "error"
   [1]
+
+
+  $ tocaml - -impl  <<EOF
+  > print_string [% import "import.ml"].x;;
+  > EOF
+  module TOCAML_private_7f2f2c5002cb0a5c9643675b06d2fa72 =
+    struct let x = "helloworld" end
+  ;;print_string TOCAML_private_7f2f2c5002cb0a5c9643675b06d2fa72.x
+
+  $ tocaml - -impl  <<EOF
+  > print_string [% import "import.ml"].x;;
+  > print_string [% import "import.ml"].x;;
+  > EOF
+  module TOCAML_private_7f2f2c5002cb0a5c9643675b06d2fa72 =
+    struct let x = "helloworld" end
+  ;;print_string TOCAML_private_7f2f2c5002cb0a5c9643675b06d2fa72.x
+  ;;print_string TOCAML_private_7f2f2c5002cb0a5c9643675b06d2fa72.x
