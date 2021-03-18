@@ -3,4 +3,5 @@
  (name tocaml_ppx)
  (kind ppx_rewriter)
  (libraries ppxlib)
- (preprocess (pps ppxlib.metaquot)))
+; (preprocess (pps ppxlib.metaquot))
+)
