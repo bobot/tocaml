@@ -127,6 +127,7 @@ let impl (stritem : structure) =
     :: acc
   in
   let start = Queue.fold fold [] imports in
+  Queue.clear imports;
   start @ stritem
 
 (** Note: enclose_impl can't be used because it is evaluated before the rule are run even if the result should be inserted after *)
