@@ -53,3 +53,26 @@
   module TOCAML_private_7f2f2c5002cb0a5c9643675b06d2fa72 =
     struct let x = "helloworld" end
   ;;print_string TOCAML_private_7f2f2c5002cb0a5c9643675b06d2fa72.x
+
+  $ tocaml - -impl  <<EOF
+  > let s = "Helloworld" in
+  > print_string s.loc.loc_start.pos_fname;;
+  > EOF
+  ;;let s =
+      {
+        Tocaml_loc_cst_runtime.loc =
+          {
+            Tocaml_loc_cst_runtime.loc_start =
+              { Lexing.pos_fname = "-"; pos_lnum = 1; pos_bol = 0; pos_cnum = 8
+              };
+            Tocaml_loc_cst_runtime.loc_end =
+              {
+                Lexing.pos_fname = "-";
+                pos_lnum = 1;
+                pos_bol = 0;
+                pos_cnum = 20
+              }
+          };
+        Tocaml_loc_cst_runtime.txt = "Helloworld"
+      } in
+    print_string ((s.loc).loc_start).pos_fname

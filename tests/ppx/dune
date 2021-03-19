@@ -1,7 +1,7 @@
 (executable
  (name conf)
  (modules conf)
- (preprocess (pps tocaml.ppx))
+ (preprocess (pps tocaml.ppx.import))
  (preprocessor_deps import.ml)
 )
 

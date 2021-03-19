@@ -1,6 +1,6 @@
 (executable
  (public_name tocaml)
  (name tocaml)
- (libraries compiler-libs.toplevel tocaml.ppx ppxlib)
+ (libraries compiler-libs.toplevel tocaml.ppx.import tocaml.ppx.loc_cst ppxlib)
  (link_flags :standard -linkall)
  (modes byte))

@@ -1,0 +1,5 @@
+(library
+ (public_name tocaml.ppx.loc_cst.runtime)
+ (name tocaml_ppx_loc_cst_runtime)
+; (preprocess (pps ppxlib.metaquot))
+)

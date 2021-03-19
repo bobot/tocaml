@@ -1,6 +1,6 @@
 (library
- (public_name tocaml.ppx)
- (name tocaml_ppx)
+ (public_name tocaml.ppx.import)
+ (name tocaml_ppx_import)
  (kind ppx_rewriter)
  (libraries ppxlib curly re)
 ; (preprocess (pps ppxlib.metaquot))

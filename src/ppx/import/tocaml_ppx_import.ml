@@ -163,4 +163,4 @@ let impl (stritem : structure) =
   start @ stritem
 
 (** Note: enclose_impl can't be used because it is evaluated before the rule are run even if the result should be inserted after *)
-let () = Driver.register_transformation ~rules ~impl "my_ext"
+let () = Driver.register_transformation ~rules ~impl "tocaml_ppx_import"
