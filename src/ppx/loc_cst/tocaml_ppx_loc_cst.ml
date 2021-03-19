@@ -13,15 +13,15 @@ let build_pos ~loc (pos : Lexing.position) =
 let build_location ~loc (loc' : Location.t) =
   [%expr
     {
-      Tocaml_loc_cst_runtime.loc_start = [%e build_pos ~loc loc'.loc_start];
-      Tocaml_loc_cst_runtime.loc_end = [%e build_pos ~loc loc'.loc_end];
+      Tocaml_ppx_loc_cst_runtime.loc_start = [%e build_pos ~loc loc'.loc_start];
+      Tocaml_ppx_loc_cst_runtime.loc_end = [%e build_pos ~loc loc'.loc_end];
     }]
 
 let build_loc ~loc (loc' : Location.t) v =
   [%expr
     {
-      Tocaml_loc_cst_runtime.loc = [%e build_location ~loc loc'];
-      Tocaml_loc_cst_runtime.txt = [%e v];
+      Tocaml_ppx_loc_cst_runtime.loc = [%e build_location ~loc loc'];
+      Tocaml_ppx_loc_cst_runtime.txt = [%e v];
     }]
 
 let add_loc_to_cst =

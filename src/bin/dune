@@ -1,6 +1,19 @@
 (executable
  (public_name tocaml)
  (name tocaml)
- (libraries compiler-libs.toplevel tocaml.ppx.import tocaml.ppx.loc_cst ppxlib)
+ (modules tocaml embeded_cmi)
+ (libraries compiler-libs.toplevel tocaml.ppx.import tocaml.ppx.loc_cst ppxlib tocaml.ppx.loc_cst.runtime)
  (link_flags :standard -linkall)
  (modes byte))
+
+(executable
+ (name gen_cached_cmi)
+ (modules gen_cached_cmi)
+ (libraries compiler-libs.common)
+)
+
+(rule
+ ; (deps (file %{cmi:../ppx/loc_cst/tocaml_ppx_loc_cst_runtime}))
+ (targets embeded_cmi.ml)
+ (action (run ./gen_cached_cmi.exe %{cmi:../ppx/loc_cst/runtime/tocaml_ppx_loc_cst_runtime} embeded_cmi.ml))
+)

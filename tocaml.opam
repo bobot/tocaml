@@ -8,6 +8,8 @@ homepage: "https://github.com/bobot/tocaml"
 bug-reports: "https://github.com/bobot/tocaml/issues"
 depends: [
   "dune" {>= "2.7"}
+  "ppxlib"
+  "ocaml-compiler-libs"
   "odoc" {with-doc}
 ]
 build: [

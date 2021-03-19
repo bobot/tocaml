@@ -7,4 +7,9 @@
 (maintainers "François Bobot")
 (source (github bobot/tocaml))
 
-(package (name tocaml) (synopsis "Set of tools and ppx to use OCaml files as configuration files"))
+(package (name tocaml) (synopsis "Set of tools and ppx to use OCaml files as configuration files")
+(depends
+        ppxlib
+        ocaml-compiler-libs
+        )
+)
