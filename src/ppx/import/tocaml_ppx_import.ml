@@ -153,5 +153,4 @@ let preprocess_impl ctxt (stritem : structure) =
   Stack.clear imports;
   start @ stritem
 
-(** Note: enclose_impl can't be used because it is evaluated before the rule are run even if the result should be inserted after *)
 let () = Driver.V2.register_transformation ~preprocess_impl "tocaml_ppx_import"
