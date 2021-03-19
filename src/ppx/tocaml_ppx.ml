@@ -5,6 +5,17 @@ let imports = Queue.create ()
 
 let already_loaded = Hashtbl.create 10
 
+let () =
+  let open Driver.Cookies in
+  add_handler (fun t ->
+      let l = get t "tocaml.already_loaded" Ast_pattern.(elist (estring __)) in
+      Option.iter (List.iter (fun s -> Hashtbl.replace already_loaded s ())) l);
+  add_post_handler (fun t ->
+      let l = List.of_seq (Hashtbl.to_seq_keys already_loaded) in
+      let loc = Location.none in
+      set t "tocaml.already_loaded"
+        Ast_builder.Default.(elist ~loc (List.map (estring ~loc) l)))
+
 type uri = Local of string | HTTP of string
 
 let re_http =
