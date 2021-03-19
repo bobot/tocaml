@@ -1,6 +1,8 @@
 open Ppxlib
 
-let imports = Queue.create ()
+let imports = Stack.create ()
+
+type stage = Loaded | Loading
 
 let already_loaded = Hashtbl.create 10
 
@@ -8,7 +10,9 @@ let () =
   let open Driver.Cookies in
   add_handler (fun t ->
       let l = get t "tocaml.already_loaded" Ast_pattern.(elist (estring __)) in
-      Option.iter (List.iter (fun s -> Hashtbl.replace already_loaded s ())) l);
+      Option.iter
+        (List.iter (fun s -> Hashtbl.replace already_loaded s Loaded))
+        l);
   add_post_handler (fun t ->
       let l = List.of_seq (Hashtbl.to_seq_keys already_loaded) in
       let loc = Location.none in
@@ -24,7 +28,7 @@ let get_filename ~ctxt path =
   if Re.execp re_http path then HTTP path
   else
     let source =
-      ctxt |> Expansion_context.Extension.code_path |> Code_path.file_path
+      ctxt |> Expansion_context.Base.code_path |> Code_path.file_path
     in
     let dir =
       match source with
@@ -62,94 +66,82 @@ let open_file file =
           let lexbuf = Lexing.from_channel ~with_positions:true cin in
           Parse.implementation lexbuf)
 
-let expand ~ctxt relative_filename args =
-  let loc = Expansion_context.Extension.extension_point_loc ctxt in
-  let sha_expected =
-    match args with
-    | [] -> None
-    | [ sha ] -> Some sha
-    | _ -> Location.raise_errorf ~loc "imports \"PATH|URL\" \"sha\"?"
-  in
-  let uri = get_filename ~ctxt relative_filename in
-  let sha = get_sha uri in
-  let id = unique_file_name sha in
-  Option.iter
-    (fun sha_expected ->
-      if not (String.equal sha sha_expected) then
-        Location.raise_errorf ~loc
-          "File %s has a different digest %S than expected %S" relative_filename
-          sha sha_expected)
-    sha_expected;
-  if not (Hashtbl.mem already_loaded id) then (
-    Hashtbl.add already_loaded id ();
-    let str = open_file uri in
-    Queue.push (id, loc, str) imports);
-  id
-
-let payload_pattern () =
+(** Payload pattern for import *)
+let pattern () =
   Ast_pattern.(
-    single_expr_payload
-      (alt
-         (map_result (estring __) ~f:(fun f -> f []))
-         (pexp_apply (estring __)
-            (many (pair (of_func (fun _ _ _ f -> f)) (estring __))))))
-
-let rules =
-  [
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.V3.declare "import" Extension.Context.module_expr
-         (payload_pattern ()) (fun ~ctxt file args ->
-           let id = expand ~ctxt file args in
-           let loc = Expansion_context.Extension.extension_point_loc ctxt in
-           Ast_builder.Default.pmod_ident ~loc { loc; txt = Lident id });
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.V3.declare "import" Extension.Context.expression
-         (payload_pattern ()) (fun ~ctxt file args ->
-           let id = expand ~ctxt file args in
-           let loc = Expansion_context.Extension.extension_point_loc ctxt in
-           Ast_builder.Default.(
-             pexp_extension ~loc
-               ( { loc; txt = "import_second_pass" },
-                 PStr
-                   [
-                     pstr_eval ~loc
-                       (pexp_ident ~loc { loc; txt = Lident id })
-                       [];
-                   ] )));
-  ]
+    extension (string "import")
+      (single_expr_payload
+         (alt
+            (map_result (estring __) ~f:(fun f -> f []))
+            (pexp_apply (estring __)
+               (many (pair (of_func (fun _ _ _ f -> f)) (estring __)))))))
 
 let convert_direct_access =
-  object
-    inherit Ast_traverse.map as super
+  object (self)
+    inherit Ast_traverse.map_with_expansion_context as super
 
-    val pattern =
-      Ast_pattern.(
-        pexp_field
-          (pexp_extension
-             (extension
-                (string "import_second_pass")
-                (single_expr_payload (pexp_ident __))))
-          __)
+    method expand ~ctxt ~loc relative_filename args =
+      let sha_expected =
+        match args with
+        | [] -> None
+        | [ sha ] -> Some sha
+        | _ -> Location.raise_errorf ~loc "imports \"PATH|URL\" \"sha\"?"
+      in
+      let uri = get_filename ~ctxt relative_filename in
+      let sha = get_sha uri in
+      let id = unique_file_name sha in
+      Option.iter
+        (fun sha_expected ->
+          if not (String.equal sha sha_expected) then
+            Location.raise_errorf ~loc
+              "File %s has a different digest %S than expected %S"
+              relative_filename sha sha_expected)
+        sha_expected;
+      (match Hashtbl.find already_loaded id with
+      | exception Not_found ->
+          Hashtbl.add already_loaded id Loading;
+          let str = open_file uri in
+          let str = self#structure ctxt str in
+          Hashtbl.add already_loaded id Loaded;
+          Stack.push (id, loc, str) imports
+      | Loaded -> ()
+      | Loading ->
+          Location.raise_errorf ~loc "Loading cycles with %s, sha %s"
+            relative_filename sha);
+      id
 
-    method! expression e =
-      let e = super#expression e in
+    method! expression ctxt e =
+      let e = super#expression ctxt e in
+      let loc = e.pexp_loc in
+      let pattern = Ast_pattern.(pexp_field (pexp_extension (pattern ())) __) in
       Ast_pattern.parse pattern e.pexp_loc
         ~on_error:(fun () -> e)
         e
-        (fun payload lid ->
-          let rec add_top payload = function
-            | Lident field -> Ldot (payload, field)
-            | Ldot (lid, field) -> Ldot (add_top payload lid, field)
-            | Lapply _ -> assert false
-            (* not in a pexp_field *)
+        (fun file args lid ->
+          let rec add_top id = function
+            | Lident field -> Ldot (Lident id, field)
+            | Ldot (lid, field) -> Ldot (add_top id lid, field)
+            | Lapply _ -> (* not in a pexp_field *) assert false
           in
-          let lid = add_top payload lid in
+          let id = self#expand ~ctxt ~loc file args in
+          let lid = add_top id lid in
           let loc = e.pexp_loc in
           Ast_builder.Default.pexp_ident ~loc { loc; txt = lid })
+
+    method! module_expr ctxt e =
+      let e = super#module_expr ctxt e in
+      let loc = e.pmod_loc in
+      let pattern = Ast_pattern.(pmod_extension (pattern ())) in
+      Ast_pattern.parse pattern e.pmod_loc
+        ~on_error:(fun () -> e)
+        e
+        (fun file args ->
+          let id = self#expand ~ctxt ~loc file args in
+          Ast_builder.Default.pmod_ident ~loc { loc; txt = Lident id })
   end
 
-let impl (stritem : structure) =
-  let stritem = convert_direct_access#structure stritem in
+let preprocess_impl ctxt (stritem : structure) =
+  let stritem = convert_direct_access#structure ctxt stritem in
   let fold acc (id, loc, str) =
     Ast_builder.Default.(
       pstr_module ~loc
@@ -157,9 +149,9 @@ let impl (stritem : structure) =
            ~expr:(pmod_structure ~loc str))
     :: acc
   in
-  let start = Queue.fold fold [] imports in
-  Queue.clear imports;
+  let start = Stack.fold fold [] imports in
+  Stack.clear imports;
   start @ stritem
 
 (** Note: enclose_impl can't be used because it is evaluated before the rule are run even if the result should be inserted after *)
-let () = Driver.register_transformation ~rules ~impl "tocaml_ppx_import"
+let () = Driver.V2.register_transformation ~preprocess_impl "tocaml_ppx_import"
