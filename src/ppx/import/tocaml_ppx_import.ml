@@ -1,6 +1,5 @@
 open Ppxlib
 
-(** todo: should this global variable be removed? *)
 let imports = Queue.create ()
 
 let already_loaded = Hashtbl.create 10
