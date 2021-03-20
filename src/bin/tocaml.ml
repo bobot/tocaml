@@ -65,9 +65,12 @@ module Sexp = struct
     | Ophr_signature _ | Ophr_exception (_, _) -> assert false
 end
 
-let () =
-  let file = Sys.argv.(1) in
-  let cin = if file = "-" then stdin else open_in file in
+let run file mode =
+  let cin, file =
+    match file with
+    | Some "-" | None -> (stdin, "-")
+    | Some file -> (open_in file, file)
+  in
   (try Toploop.initialize_toplevel_env ()
    with (Env.Error _ | Typetexp.Error _) as exn ->
      Location.report_exception Format.err_formatter exn;
@@ -81,7 +84,12 @@ let () =
   in
   Toploop.max_printer_depth := max_int;
   Toploop.max_printer_steps := max_int;
-  Oprint.out_phrase := Sexp.print_out_phrase;
+  let print_out =
+    match mode with
+    | `Sexp -> Sexp.print_out_phrase
+    | `OCaml -> !Oprint.out_phrase
+  in
+  Oprint.out_phrase := print_out;
   Location.input_name := file;
   Sys.catch_break true;
   Toploop.run_hooks Toploop.After_setup;
@@ -112,3 +120,29 @@ let () =
   with exn ->
     Location.report_exception Format.err_formatter exn;
     exit 2
+
+open Cmdliner
+
+let () =
+  let file = Arg.(value & pos 1 (some string) None (info ~docv:"Info" [])) in
+  let mode =
+    Arg.(
+      value
+      & vflag `Sexp
+          [
+            (`Sexp, info ~doc:"Output the result using s-expression" [ "sexp" ]);
+            (`OCaml, info ~doc:"Output the result as OCaml values" [ "ocaml" ]);
+          ])
+  in
+  let cmd = Term.(const run $ file $ mode) in
+  let res =
+    Term.(
+      eval
+        ( cmd,
+          info
+            ~doc:
+              "Print the result of the execution of configuration file written \
+               in OCaml"
+            "tocaml" ))
+  in
+  Term.exit res
