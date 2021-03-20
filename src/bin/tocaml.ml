@@ -65,35 +65,77 @@ module Sexp = struct
     | Ophr_signature _ | Ophr_exception (_, _) -> assert false
 end
 
+module JSON = struct
+  open Yojson
+
+  let print_out_value ppf tree =
+    let open Outcometree in
+    let open Format in
+    let rec conv_ident = function
+      | Oide_ident s -> s.printed_name
+      | Oide_dot (_, id) -> id
+      | Oide_apply (_, id) -> conv_ident id
+    in
+    let atom fmt = Format.kasprintf (fun s -> `String s) fmt in
+    let rec conv : _ -> Safe.t = function
+      | Oval_int i -> `Int i
+      | Oval_int32 i -> `Intlit (asprintf "%lil" i)
+      | Oval_int64 i -> `Intlit (asprintf "%LiL" i)
+      | Oval_nativeint i -> `Intlit (asprintf "%nin" i)
+      | Oval_float f -> `Float f
+      | Oval_char c -> atom "%C" c
+      | Oval_string (s, _, _) -> `String s
+      | Oval_list tl | Oval_array tl -> `List (List.map conv tl)
+      | Oval_tuple tl -> `Tuple (List.map conv tl)
+      | Oval_constr (name, []) -> `Variant (conv_ident name, None)
+      | Oval_constr (name, tl) ->
+          `Variant (conv_ident name, Some (`List (List.map conv tl)))
+      | Oval_variant (name, arg) -> `Variant (name, Option.map conv arg)
+      | Oval_stuff s -> `String s
+      | Oval_record fel ->
+          `Assoc (List.map (fun (s, v) -> (conv_ident s, conv v)) fel)
+      | Oval_ellipsis -> assert false (* max depth and step set to maxint *)
+      | Oval_printer f -> atom "%t" f
+    in
+    let sexp = conv tree in
+    Safe.pretty_print ppf sexp
+
+  let print_out_phrase ppf = function
+    | Outcometree.Ophr_eval (outv, _) -> print_out_value ppf outv
+    | Ophr_signature [] -> ()
+    | Ophr_signature _ | Ophr_exception (_, _) -> assert false
+end
+
 let run file mode =
-  let cin, file =
-    match file with
-    | Some "-" | None -> (stdin, "-")
-    | Some file -> (open_in file, file)
-  in
-  (try Toploop.initialize_toplevel_env ()
-   with (Env.Error _ | Typetexp.Error _) as exn ->
-     Location.report_exception Format.err_formatter exn;
-     exit 2);
-  let phr =
-    Fun.protect
-      ~finally:(fun () -> close_in cin)
-      (fun () ->
-        let lb = Lexing.from_channel ~with_positions:true cin in
-        Parse.implementation lb)
-  in
-  Toploop.max_printer_depth := max_int;
-  Toploop.max_printer_steps := max_int;
-  let print_out =
-    match mode with
-    | `Sexp -> Sexp.print_out_phrase
-    | `OCaml -> !Oprint.out_phrase
-  in
-  Oprint.out_phrase := print_out;
-  Location.input_name := file;
-  Sys.catch_break true;
-  Toploop.run_hooks Toploop.After_setup;
   try
+    let cin, file =
+      match file with
+      | Some "-" | None -> (stdin, "-")
+      | Some file -> (open_in file, file)
+    in
+    (try Toploop.initialize_toplevel_env ()
+     with (Env.Error _ | Typetexp.Error _) as exn ->
+       Location.report_exception Format.err_formatter exn;
+       exit 2);
+    let phr =
+      Fun.protect
+        ~finally:(fun () -> close_in cin)
+        (fun () ->
+          let lb = Lexing.from_channel ~with_positions:true cin in
+          Parse.implementation lb)
+    in
+    Toploop.max_printer_depth := max_int;
+    Toploop.max_printer_steps := max_int;
+    let print_out =
+      match mode with
+      | `Sexp -> Sexp.print_out_phrase
+      | `JSON -> JSON.print_out_phrase
+      | `OCaml -> !Oprint.out_phrase
+    in
+    Oprint.out_phrase := print_out;
+    Location.input_name := file;
+    Sys.catch_break true;
+    Toploop.run_hooks Toploop.After_setup;
     let phr = Pparse.apply_rewriters_str ~restore:true ~tool_name:"ocaml" phr in
     let phr = Ppxlib.Selected_ast.Of_ocaml.copy_structure phr in
     let phr = Ppxlib.Driver.map_structure phr in
@@ -131,6 +173,7 @@ let () =
       & vflag `Sexp
           [
             (`Sexp, info ~doc:"Output the result using s-expression" [ "sexp" ]);
+            (`JSON, info ~doc:"Output the result using JSON format" [ "json" ]);
             (`OCaml, info ~doc:"Output the result as OCaml values" [ "ocaml" ]);
           ])
   in
