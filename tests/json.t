@@ -1,4 +1,4 @@
-  $ tocaml --json -  <<EOF
+  $ tocaml --v0 --json -  <<EOF
   > "a";;
   > EOF
   {
@@ -19,12 +19,12 @@
     "txt": "a"
   }
 
-  $ tocaml --json -  <<EOF
+  $ tocaml --v0 --json -  <<EOF
   > "a".txt;;
   > EOF
   "a"
 
-  $ tocaml --json -  <<EOF
+  $ tocaml --v0 --json -  <<EOF
   > type r = { a: string; b: string };;
   > { a = "a".txt; b = "b".txt };;
   > EOF

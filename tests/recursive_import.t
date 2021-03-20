@@ -8,7 +8,7 @@
   > module M = [% import "import0.ml"] ;;
   > EOF
 
-  $ tocaml - <<EOF
+  $ tocaml --v0 - <<EOF
   > [% import "import1.ml"].M.x.txt ;;
   > EOF
   helloworld
@@ -17,7 +17,7 @@
   > let x = [% import "import0.ml"].x ;;
   > EOF
 
-  $ tocaml - <<EOF
+  $ tocaml --v0 - <<EOF
   > [% import "import1.ml"].x ;;
   > EOF
   ((loc((loc_start((pos_fname"")(pos_lnum 1)(pos_bol 0)(pos_cnum 8)))(loc_end((pos_fname"")(pos_lnum 1)(pos_bol 0)(pos_cnum 20)))))(txt helloworld))
@@ -33,7 +33,7 @@
   > module M = [% import "import0.ml"] ;;
   > EOF
 
-  $ tocaml - <<EOF
+  $ tocaml --v0 - <<EOF
   > module M = [% import "import1.ml"] ;;
   > EOF
   File "-", line 1, characters 11-34:

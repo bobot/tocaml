@@ -4,19 +4,19 @@
   > let x = "helloworld"
   > EOF
 
-  $ tocaml -  <<EOF
+  $ tocaml --v0 -  <<EOF
   > module M = [% import "import.ml"] ;;
   > M.x.txt;;
   > EOF
   helloworld
 
-  $ tocaml -  <<EOF
+  $ tocaml --v0 -  <<EOF
   > module M = [% import "import.ml" "7f2f2c5002cb0a5c9643675b06d2fa72"] ;;
   > M.x.txt;;
   > EOF
   helloworld
 
-  $ tocaml -  <<EOF
+  $ tocaml --v0 -  <<EOF
   > module M = [% import "import.ml" "error"] ;;
   > M.x.txt;;
   > EOF
@@ -25,23 +25,23 @@
   [2]
 
 
-  $ tocaml -  <<EOF
+  $ tocaml --v0 -  <<EOF
   > [% import "import.ml"].x.txt;;
   > EOF
   helloworld
 
-  $ tocaml -  <<EOF
+  $ tocaml --v0 -  <<EOF
   > print_string [% import "import.ml"].x.txt;;
   > [% import "import.ml"].x.txt;;
   > EOF
   helloworldhelloworld
 
-  $ tocaml -  <<EOF
+  $ tocaml --v0 -  <<EOF
   > [% import "https://raw.githubusercontent.com/bobot/tocaml/1f851efe8361d6f047fb2af96bcbef451074681c/tests/ppx/import.ml" "7f2f2c5002cb0a5c9643675b06d2fa72"].x.txt;;
   > EOF
   helloworld
 
-  $ tocaml -  <<EOF
+  $ tocaml --v0 -  <<EOF
   > let s = "Helloworld" in
   > s.loc;;
   > EOF
@@ -51,7 +51,7 @@
   > "helloworld"
   > EOF
 
-  $ tocaml -  <<EOF
+  $ tocaml --v0 -  <<EOF
   > [%exp "import.ml"].txt ;;
   > EOF
   helloworld

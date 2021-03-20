@@ -106,7 +106,7 @@ module JSON = struct
     | Ophr_signature _ | Ophr_exception (_, _) -> assert false
 end
 
-let run file mode =
+let run file mode `V0 =
   try
     let cin, file =
       match file with
@@ -177,7 +177,12 @@ let () =
             (`OCaml, info ~doc:"Output the result as OCaml values" [ "ocaml" ]);
           ])
   in
-  let cmd = Term.(const run $ file $ mode) in
+  let version =
+    Arg.(
+      required
+      & vflag None [ (Some `V0, info ~doc:"Version 0 (experimental)" [ "v0" ]) ])
+  in
+  let cmd = Term.(const run $ file $ mode $ version) in
   let res =
     Term.(
       eval
