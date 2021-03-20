@@ -141,10 +141,25 @@ let () =
     let phr = Ppxlib.Selected_ast.Of_ocaml.copy_structure phr in
     let phr = Ppxlib.Driver.map_structure phr in
     let phr = Ppxlib.Selected_ast.To_ocaml.copy_structure phr in
-    let success =
-      Toploop.execute_phrase true Format.err_formatter (Ptop_def phr)
+    let rec get_eval acc = function
+      | [] -> (List.rev acc, None)
+      | [ ({ Parsetree.pstr_desc = Pstr_eval (_, _); _ } as last) ] ->
+          (List.rev acc, Some last)
+      | a :: l -> get_eval (a :: acc) l
     in
-    if success then exit 0 else exit 1
+    let phr, last_eval = get_eval [] phr in
+    let success =
+      Toploop.execute_phrase false Format.err_formatter (Ptop_def phr)
+    in
+    if not success then exit 1;
+    match last_eval with
+    | None -> ()
+    | Some last_eval ->
+        let success =
+          Toploop.execute_phrase true Format.err_formatter
+            (Ptop_def [ last_eval ])
+        in
+        if success then exit 0 else exit 1
   with exn ->
     Location.report_exception Format.err_formatter exn;
     exit 2
