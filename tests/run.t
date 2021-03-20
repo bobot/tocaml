@@ -50,3 +50,12 @@
   {Tocaml_ppx_loc_cst_runtime.loc_start =
     {Lexing.pos_fname = ""; pos_lnum = 1; pos_bol = 0; pos_cnum = 8};
    loc_end = {Lexing.pos_fname = ""; pos_lnum = 1; pos_bol = 0; pos_cnum = 20}}
+
+  $ cat > import.ml <<EOF
+  > "helloworld"
+  > EOF
+
+  $ tocaml -  <<EOF
+  > [%exp "import.ml"].txt ;;
+  > EOF
+  - : string = "helloworld"
