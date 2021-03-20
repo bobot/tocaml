@@ -11,7 +11,7 @@
   $ tocaml - -impl  <<EOF
   > [% import "import1.ml"].M.x.txt ;;
   > EOF
-  - : string = "helloworld"
+  helloworld
 
   $ cat > import1.ml <<EOF
   > let x = [% import "import0.ml"].x ;;
@@ -20,13 +20,7 @@
   $ tocaml - -impl  <<EOF
   > [% import "import1.ml"].x ;;
   > EOF
-  - : string Tocaml_ppx_loc_cst_runtime.loc =
-  {Tocaml_ppx_loc_cst_runtime.loc =
-    {Tocaml_ppx_loc_cst_runtime.loc_start =
-      {Lexing.pos_fname = ""; pos_lnum = 1; pos_bol = 0; pos_cnum = 8};
-     loc_end =
-      {Lexing.pos_fname = ""; pos_lnum = 1; pos_bol = 0; pos_cnum = 20}};
-   txt = "helloworld"}
+  ((loc((loc_start((pos_fname"")(pos_lnum 1)(pos_bol 0)(pos_cnum 8)))(loc_end((pos_fname"")(pos_lnum 1)(pos_bol 0)(pos_cnum 20)))))(txt helloworld))
 
 
 # Test cycle

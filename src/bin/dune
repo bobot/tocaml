@@ -2,7 +2,8 @@
  (public_name tocaml)
  (name tocaml)
  (modules tocaml embeded_cmi)
- (libraries compiler-libs.toplevel tocaml.ppx.import tocaml.ppx.loc_cst ppxlib tocaml.ppx.loc_cst.runtime)
+ (libraries compiler-libs.toplevel tocaml.ppx.import tocaml.ppx.loc_cst ppxlib tocaml.ppx.loc_cst.runtime
+            sexplib)
  (link_flags :standard -linkall)
  (modes byte))
 
