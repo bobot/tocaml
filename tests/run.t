@@ -55,3 +55,13 @@
   > [%exp "import.ml"].txt ;;
   > EOF
   helloworld
+
+  $ cat > func.ml <<EOF
+  > let f s = Ok s;;
+  > f
+  > EOF
+
+  $ tocaml --v0 -  <<EOF
+  > [%exp "func.ml"] 1 ;;
+  > EOF
+  (Ok 1)
