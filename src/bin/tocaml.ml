@@ -2,17 +2,24 @@ let () = Printexc.record_backtrace true
 
 let () =
   let old_loader = !Persistent_env.Persistent_signature.load in
+  let cmis =
+    List.map
+      (fun s ->
+        let cmi = (Marshal.from_string s 0 : Cmi_format.cmi_infos) in
+        (cmi.cmi_name, cmi))
+      Embeded_cmi.cmis
+  in
   (Persistent_env.Persistent_signature.load :=
      fun ~unit_name ->
-       match unit_name with
-       | "Tocaml_ppx_loc_cst_runtime" ->
+       match List.assoc_opt unit_name cmis with
+       | Some cmi ->
            Some
              {
                Persistent_env.Persistent_signature.filename =
                  Sys.executable_name;
-               cmi = Marshal.from_string Embeded_cmi.cmi 0;
+               cmi;
              }
-       | _ -> old_loader ~unit_name);
+       | None -> old_loader ~unit_name);
   Toploop.add_hook (function
     | Toploop.After_setup ->
         let env = !Toploop.toplevel_env in

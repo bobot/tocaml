@@ -5,7 +5,20 @@
  (preprocessor_deps import.ml)
 )
 
+(executable
+ (name subst)
+ (modules subst)
+ (preprocess (pps tocaml.ppx.import tocaml.ppx.loc_cst))
+ (preprocessor_deps import.ml)
+)
+
 (rule
  (alias runtest)
  (action (run ./conf.exe))
+)
+
+
+(rule
+ (alias runtest)
+ (action (run ./subst.exe))
 )

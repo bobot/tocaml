@@ -2,7 +2,7 @@
  (public_name tocaml.ppx.loc_cst)
  (name tocaml_ppx_loc_cst)
  (kind ppx_rewriter)
- (libraries ppxlib)
+ (libraries ppxlib re)
  (ppx_runtime_libraries tocaml.ppx.loc_cst.runtime)
  (preprocess (pps ppxlib.metaquot))
 )

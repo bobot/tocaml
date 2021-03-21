@@ -3,7 +3,7 @@
  (name tocaml)
  (modules tocaml embeded_cmi)
  (libraries compiler-libs.toplevel tocaml.ppx.import tocaml.ppx.loc_cst ppxlib tocaml.ppx.loc_cst.runtime
-            sexplib cmdliner yojson)
+            sexplib cmdliner yojson tocaml.locstring)
  (link_flags :standard -linkall)
  (modes byte))
 
@@ -14,7 +14,8 @@
 )
 
 (rule
- ; (deps (file %{cmi:../ppx/loc_cst/tocaml_ppx_loc_cst_runtime}))
  (targets embeded_cmi.ml)
- (action (run ./gen_cached_cmi.exe %{cmi:../ppx/loc_cst/runtime/tocaml_ppx_loc_cst_runtime} embeded_cmi.ml))
+ (action (run ./gen_cached_cmi.exe embeded_cmi.ml
+           %{cmi:../ppx/loc_cst/runtime/tocaml_ppx_loc_cst_runtime}
+           %{cmi:../lib/locstring/LocString}))
 )

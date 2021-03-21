@@ -24,18 +24,63 @@ let build_loc ~loc (loc' : Location.t) v =
       Tocaml_ppx_loc_cst_runtime.txt = [%e v];
     }]
 
+open Ppxlib
+
+let var =
+  Re.(
+    compile
+      (seq
+         [
+           char '$';
+           alt
+             [
+               seq [ char '{'; group (rep1 @@ compl [ char '}' ]); char '}' ];
+               group (rep1 alnum);
+             ];
+         ]))
+
+let subst ~loc str =
+  let l = Re.split_full var str in
+  let l =
+    List.map
+      Ast_builder.Default.(
+        function
+        | `Text s -> estring ~loc s
+        | `Delim g ->
+            let (i, _), s =
+              if Re.Group.test g 1 then (Re.Group.offset g 1, Re.Group.get g 1)
+              else (Re.Group.offset g 2, Re.Group.get g 2)
+            in
+            let lb = Lexing.from_string s in
+            lb.lex_start_p <-
+              { loc.loc_start with pos_cnum = loc.loc_start.pos_cnum + i };
+            lb.lex_curr_p <- lb.lex_start_p;
+            [%expr [%e Parse.expression lb].txt])
+      l
+  in
+  let e =
+    match l with
+    | [] -> Ast_builder.Default.estring ~loc ""
+    | [ e ] -> e
+    | l ->
+        [%expr
+          Tocaml_ppx_loc_cst_runtime.concat
+            [%e Ast_builder.Default.elist ~loc l]]
+  in
+  build_loc ~loc loc e
+
 let add_loc_to_cst =
   object
     inherit Ast_traverse.map as super
 
-    val pattern = Ast_pattern.(pexp_constant __)
+    val pattern = Ast_pattern.(estring __)
 
     method! expression e =
       let e = super#expression e in
       Ast_pattern.parse pattern e.pexp_loc
         ~on_error:(fun () -> e)
         e
-        (fun _ -> build_loc ~loc:e.pexp_loc e.pexp_loc e)
+        (fun s -> subst ~loc:e.pexp_loc s)
 
     method! payload e = e
   end
